@@ -16,8 +16,14 @@ const sleep = ms => new Promise(r => setTimeout(r, ms))
 const now = () => Date.now() / 1000
 
 let main = null
-const codex = await launchCodex({ args: ['--lang=en-US'], onPage(info, sessionId) { if (info.url.endsWith('/index.html')) main = sessionId } })
-const send = (method, params = {}) => codex.cdp.send(method, params, main)
+/* English for this run only; and keep painting while other windows cover Codex, so the take needs no screen */
+const ARGS = ['--lang=en-US', '--disable-backgrounding-occluded-windows', '--disable-renderer-backgrounding', '--disable-background-timer-throttling']
+const codex = await launchCodex({ args: ARGS, onPage(info, sessionId) { if (info.url.endsWith('/index.html')) main = sessionId } })
+/* every command answers within 8 s or the take stops with the reason */
+const send = (method, params = {}) => Promise.race([
+  codex.cdp.send(method, params, main),
+  new Promise((_, ko) => setTimeout(() => ko(new Error(`${method} did not answer in 8 s`)), 8000)),
+])
 const evaluate = async expression => (await send('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true })).result?.value
 
 /* wait for the new-chat page and the pond on it */
@@ -32,8 +38,9 @@ await sleep(800)
 
 /* the sidebar lists private threads: hide it for the take, and put it back after */
 log('sidebar buttons:', JSON.stringify(await evaluate(`[...document.querySelectorAll('button[aria-label]')].map(b => b.getAttribute('aria-label')).filter(l => /sidebar/i.test(l))`)))
-const toggleSidebar = () => evaluate(`(() => { const b = [...document.querySelectorAll('button[aria-label]')].find(b => /^(hide|show|toggle|collapse|expand|open|close)\\b.*sidebar/i.test(b.getAttribute('aria-label')) && !/option|project/i.test(b.getAttribute('aria-label'))); if (b) b.click(); return b ? b.getAttribute('aria-label') : null })()`)
-log('sidebar toggle:', await toggleSidebar())
+const pressSidebar = verb => evaluate(`(() => { const b = [...document.querySelectorAll('button[aria-label]')].find(b => /^${verb} sidebar$/i.test(b.getAttribute('aria-label'))); if (b) b.click(); return !!b })()`)
+const hidSidebar = await pressSidebar('hide')
+log('sidebar hidden for the take:', hidSidebar)
 await sleep(2500)
 
 const layout = await evaluate(`(() => {
@@ -109,7 +116,7 @@ await send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: 'a', code: 'KeyA
 await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'a', code: 'KeyA', windowsVirtualKeyCode: 65, modifiers: 4 })
 await send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: 'Backspace', code: 'Backspace', windowsVirtualKeyCode: 8 })
 await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Backspace', code: 'Backspace', windowsVirtualKeyCode: 8 })
-await toggleSidebar()
+if (hidSidebar) await pressSidebar('show')
 
 writeFileSync(join(OUT, 'timeline.json'), JSON.stringify({ t0, t1, layout, frames, cursor, clicks }, null, 0))
 await codex.leave()

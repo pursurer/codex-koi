@@ -71,7 +71,7 @@ The pond fades in over 0.9 s when the new-chat page appears, and the heading set
 | `codex-koi.sh` | `status` (koi, plain or off) and `start` |
 | `Codex Koi.applescript` | Source of the entry app |
 | `codex-koi.icns` | The ASCII Koi icon for the entry app |
-| `record.mjs` | Development tool: records promo footage. It starts Codex in English, hides the sidebar for the take, plays a scripted cut with real input (food on the heading, the cat's paw, a typed prompt that is never sent) and saves the screencast frames and a timeline to `KOI_OUT` |
+| `record.mjs` | Development tool: records promo footage. It starts Codex in English, painting even while other windows cover it, hides the sidebar when Codex offers a Hide sidebar button (check the frames if it logs `false`), plays a scripted cut with real input (food on the heading, the cat's paw, a typed prompt that is never sent) and saves the screencast frames and a timeline to `KOI_OUT`. Every DevTools command must answer within 8 s or the take stops |
 | `probe.mjs` | Pipe check against an isolated instance (its own profile and its own `CODEX_HOME`) |
 | `themes/ascii-koi.codex-theme.txt` | The matching Codex dark theme |
 
