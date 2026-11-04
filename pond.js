@@ -318,11 +318,13 @@
           if (tc >= 0 && tr >= 0 && tc < cols && tr < rows) wake[tr * cols + tc] = Math.min(1, wake[tr * cols + tc] + 0.18 * f.beat * dt * 30);
         }
       });
-      /* wake: spreads a little and fades */
+      /* wake: spreads a little and fades, the edge cells too: a neighbour beyond the edge counts as the cell
+         itself, so a wake left by a koi passing the edge fades like any other instead of piling up there */
       const fade = Math.exp(-dt * 1.4);
-      for (let r = 1; r < rows - 1; r++) for (let c = 1; c < cols - 1; c++) {
-        const i = r * cols + c;
-        wakeTmp[i] = (wake[i] * 0.84 + (wake[i - 1] + wake[i + 1] + wake[i - cols] + wake[i + cols]) * 0.04) * fade;
+      for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+        const i = r * cols + c, w = wake[i];
+        const n = (c > 0 ? wake[i - 1] : w) + (c < cols - 1 ? wake[i + 1] : w) + (r > 0 ? wake[i - cols] : w) + (r < rows - 1 ? wake[i + cols] : w);
+        wakeTmp[i] = (w * 0.84 + n * 0.04) * fade;
       }
       [wake, wakeTmp] = [wakeTmp, wake];
     }
