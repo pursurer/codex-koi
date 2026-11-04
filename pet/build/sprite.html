@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ASCII Cat · Codex pet atlas</title>
+<style>
+/* the page loads Geist Mono 400-600 from Google Fonts, so its 700 glyphs are drawn at 600: the same here */
+@font-face { font-family: "Geist Mono"; font-weight: 400 600; font-style: normal; src: url("geist-mono.woff2") format("woff2"); }
+/* the template's dark theme: the only values draw() reads from CSS */
+:root { color-scheme: dark; --cat-pink: #ee9fb1; }
+</style>
+<script src="cat.js"></script>
+</head>
+<body>
+<pre id="meta"></pre>
+<pre id="atlas"></pre>
+<script>
+(async () => {
+  const CW = 192, CH = 208, COLS = 8, ROWS = 9, TAU = Math.PI * 2;
+  const Q = new URLSearchParams(location.search);
+  /* The page draws the cat at scale s with the canvas finer by as much (ZOOM), so one canvas pixel is one device pixel.
+     Here: s = S on a 2x screen, so the bitmap has R = 2 * S pixels per cat unit and is copied 1:1 into the cell. */
+  const S = +(Q.get('s') || 1.1), R = 2 * S;
+  const isDark = () => getComputedStyle(document.documentElement).getPropertyValue("color-scheme").includes("dark");
+  const cv = document.createElement('canvas');
+  const cat = makeCat(cv, { DESIGN: { footCat: true }, isDark });
+  await document.fonts.load('700 2px "Geist Mono"');
+  const fontOK = document.fonts.check('700 2px "Geist Mono"');
+  const REST = { pose: "sit", dir: -1, eye: "open", ears: 0, tilt: 0, arm: null, tailUp: false, look: null, lid: 0, knead: false, yawnAt: null, washAt: 0, run: 0 };
+  const cell = document.createElement('canvas'); cell.width = CW; cell.height = CH;
+  const cctx = cell.getContext('2d');
+  const BASE = CH - 10;                                        // the feet, in every row
+
+  /*
+   * One frame: st (merged over the rest state), the page's clock t and tail speed, and the canvas's own
+   * transform as the page applies it in CSS (move dx, dy px; rotate r deg; scale sx, sy) about the feet.
+   */
+  function frame(p) {
+    Object.assign(cat.st, REST, p.st || {});
+    cat.set({ t: p.t, pos: { x: 0, y: 0, s: S }, dpr: R, tailSpeed: p.tailSpeed ?? 2.2, blinkUntil: -1, wideUntil: -1 });
+    cat.draw();
+    cctx.setTransform(1, 0, 0, 1, 0, 0);
+    cctx.clearRect(0, 0, CW, CH);
+    const fx = Math.round(p.fx + (p.dx || 0)), fy = Math.round(BASE + (p.dy || 0));
+    cctx.translate(fx, fy);
+    if (p.r) cctx.rotate(p.r * Math.PI / 180);
+    if (p.sx || p.sy) cctx.scale(p.sx || 1, p.sy || 1);
+    /* the bitmap's feet point (AX, AY) lands on (fx, fy), to the nearest pixel when nothing turns or scales */
+    const plain = !p.r && !p.sx && !p.sy;
+    cctx.drawImage(cv, plain ? -Math.round(cat.AX * R) : -cat.AX * R, plain ? -Math.round(cat.AY * R) : -cat.AY * R);
+    return cell;
+  }
+
+  /* where the feet go across the cell, so each pose sits in the middle: sitting with the tail to the right, side poses facing dir */
+  const SIT_X = 96 - 5 * R, SIDE_X = dir => 96 - dir * 4 * R;
+  const BREATH = TAU / 1.9;                                   // one breath of the page's sitting cat (sin(t * 1.9))
+  const at = (durs, i) => durs.slice(0, i).reduce((a, b) => a + b, 0) / durs.reduce((a, b) => a + b, 0);
+  const looking = (lx, ly = 0) => ({ x: 70 * lx, y: -39 * S + 70 * ly });
+
+  const ROW = [
+    /* 0 idle: sitting, one breath and one slow tail sway per loop, one blink */
+    { n: 6, fn: i => { const d = [280, 110, 110, 140, 140, 320];
+      return { fx: SIT_X, t: 10 + BREATH * at(d, i), tailSpeed: 1.9, st: { eye: i === 2 ? "blink" : "open" } }; } },
+    /* 1 running-right: the page's walk facing right, two strides a loop */
+    { n: 8, fn: i => ({ fx: SIDE_X(1), t: 10 + (2 * TAU / 15) * i / 8, tailSpeed: 3.75, st: { pose: "walk", dir: 1, run: 1 } }) },
+    /* 2 running-left: the same walk facing left, drawn by the page's own mirror */
+    { n: 8, fn: i => ({ fx: SIDE_X(-1), t: 10 + (2 * TAU / 15) * i / 8, tailSpeed: 3.75, st: { pose: "walk", dir: -1, run: 1 } }) },
+    /* 3 waving: the paw goes up (pink pad), up with a little head tilt, a bat down, and back */
+    { n: 4, fn: i => ({ fx: SIT_X, t: 10 + 0.14 * i, st: { arm: ["up", "up", "down", null][i], tilt: [0, -0.08, 0.05, 0][i], look: looking([-0.6, -0.6, -0.4, 0][i], -0.2) } }) },
+    /* 4 jumping: the page's crouch, then its pounce in place (rising -16 deg to +14 deg), then sitting again */
+    { n: 5, fn: i => {
+      if (i === 0) return { fx: 96 - R, t: 10.03, st: { pose: "crouch", dir: 1 } };
+      if (i === 4) return { fx: SIT_X, t: 10.6, st: {} };
+      const k = [0, 0.22, 0.5, 0.8][i], h = 64;
+      /* turning about the feet swings the body sideways; this keeps each airborne frame centred */
+      return { fx: 96 - 2 * R + [0, 8, 1, -5][i], dy: -4 * h * k * (1 - k), r: -16 + 30 * k, t: 10 + 0.14 * i, st: { pose: "jump", dir: 1 } };
+    } },
+    /* 5 failed: the page's bad-news reaction (ears flat, eyes wide, fast tail, a paw over the eyes), then eyes shut, ears down, head low */
+    { n: 8, fn: i => {
+      const s = [{}, { eye: "wide", ears: 0.5 }, { eye: "wide", ears: 1 }, { ears: 1, arm: "eyes" }, { ears: 1, arm: "eyes" },
+        { ears: 1, eye: "blink", tilt: 0.08 }, { ears: 1, eye: "blink", tilt: 0.14 }, { ears: 1, eye: "blink", tilt: 0.14 }][i];
+      return { fx: SIT_X, t: 10 + 0.14 * i, tailSpeed: i >= 1 && i <= 4 ? 7 : 1.2, st: s, ...(i >= 6 ? { sx: 1.03, sy: 0.95 } : {}) };
+    } },
+    /* 6 waiting: sitting, looking straight out, tail up, ears up with one twitch, the head tilting as if asking */
+    { n: 6, fn: i => ({ fx: SIT_X, t: 10 + BREATH * i / 6, st: { tailUp: true, tilt: [0, 0.05, 0.1, 0.12, 0.1, 0.05][i], ears: i === 3 ? 0.45 : 0 } }) },
+    /* 7 running: kneading with sleepy lids, focused in place (one press of each paw a loop) */
+    { n: 6, fn: i => { const D = TAU / 7, c = (Math.PI / 2) / 1.9;
+      return { fx: SIT_X, t: c - D / 2 + D * i / 6, tailSpeed: 1.9, st: { knead: true, lid: 0.45 } }; } },
+    /* 8 review: sitting, eyes and head turning slowly one way and the other, a slow blink in the middle */
+    { n: 6, fn: i => { const lx = Math.sin(TAU * i / 6) * 0.9;
+      return { fx: SIT_X, t: 10 + BREATH * i / 6, tailSpeed: 1.9, st: { look: looking(lx, -0.1), tilt: -0.1 * lx, lid: [0, 0.25, 0.5, 0, 0.5, 0.25][i], eye: i === 3 ? "blink" : "open" } }; } }
+  ];
+
+  const atlas = document.createElement('canvas');
+  atlas.width = CW * COLS; atlas.height = CH * ROWS;
+  const actx = atlas.getContext('2d');
+  ROW.forEach((row, r) => { for (let i = 0; i < row.n; i++) actx.drawImage(frame(row.fn(i)), i * CW, r * CH); });
+  document.getElementById('meta').textContent = JSON.stringify({ fontOK, S, R, dark: isDark() });
+  document.getElementById('atlas').textContent = atlas.toDataURL('image/png');
+})().catch(e => { document.getElementById('meta').textContent = 'ERROR ' + e.stack; });
+</script>
+</body>
+</html>

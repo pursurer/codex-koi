@@ -1,0 +1,6 @@
+{
+  "id": "ascii-cat",
+  "displayName": "ASCII Cat",
+  "description": "A little round black cat with gold-ringed eyes, drawn in character tiles.",
+  "spritesheetPath": "spritesheet.webp"
+}

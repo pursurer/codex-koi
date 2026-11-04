@@ -1,3 +1,4 @@
 codex.pid
 .DS_Store
 node_modules/
+pet/build/out/
