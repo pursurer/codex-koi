@@ -56,14 +56,19 @@ export async function launchCodex({ args = [], onPage } = {}) {
   cdp.on(msg => {
     if (msg.method === 'Target.targetCreated' || msg.method === 'Target.targetInfoChanged') attach(msg.params.targetInfo)
   })
-  await cdp.send('Target.setDiscoverTargets', { discover: true })
+  /* a Codex that is already open takes over and this one quits at once: say so instead of waiting forever */
+  const quit = new Promise((_, ko) => child.once('exit', code => ko(new Error(`Codex quit at once (code ${code}): another Codex is already open; quit it (⌘Q) first`))))
+  await Promise.race([cdp.send('Target.setDiscoverTargets', { discover: true }), quit])
   log('codex started, pid', child.pid)
 
   return {
     cdp, child, seen,
-    /* stop listening for new pages (so Codex has nothing more to send) and close our side */
+    /* stop listening for new pages (so Codex has nothing more to send) and close our side.
+       A few seconds in, Codex starts its computer-use helper, which inherits the pipe's two ends
+       and can swallow what passes through them: so all the work happens early, and no answer is
+       waited for longer than 2 s. */
     async leave() {
-      await cdp.send('Target.setDiscoverTargets', { discover: false }).catch(() => {})
+      await Promise.race([cdp.send('Target.setDiscoverTargets', { discover: false }), new Promise(r => setTimeout(r, 2000))]).catch(() => {})
       writer.end(); reader.destroy()
     },
   }

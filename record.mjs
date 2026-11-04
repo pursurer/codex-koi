@@ -1,126 +1,80 @@
-// Records the promo footage: Codex with the koi, its interface in English for this run only
-// (--lang=en-US), the sidebar hidden, and a scripted cut played with real input events: the koi
-// swim, food lands on the heading so they crowd under it and light it up, the cat's paw scatters
-// them, then a prompt is typed (never sent). The renderer is captured as a screencast; frames and
-// a timeline (cursor path, clicks) go to KOI_OUT for the edit (edit.py).
+// Records promo footage of the real Codex with the koi: its interface in English for this run only
+// (--lang=en-US), and demo.js playing the take inside the page (an in-page cursor feeds the koi on
+// the heading, sends the cat's paw, types a prompt that is never sent). macOS itself records the
+// window (screencapture -v), so what is filmed is what is on screen.
 //
-//   KOI_OUT=/path/to/dir node record.mjs
-import { mkdirSync, writeFileSync } from 'node:fs'
+//   KOI_OUT=/path/to/dir node record.mjs [--restart]                   starts Codex and films one take
+//                                                                       (--restart: quit an open Codex first)
+//   KOI_OUT=/path/to/dir KOI_RECT=x,y,w,h node record.mjs --again      a retake in the same Codex
+//   KOI_OUT=/path/to/dir node record.mjs --studio [--restart]          Codex with the koi and the sidebar hidden,
+//                                                                       for a screen recorder and a real cursor; films nothing
+//
+// The pipe is used only in the first two seconds (koi, demo, the window's place): a few seconds
+// in, Codex starts its computer-use helper, which inherits the pipe and makes large messages
+// unreliable. The take starts when Codex is the front app; leave it there, pointer off the
+// window, until "take done". For a retake, switch away from Codex and back.
+import { execFileSync, spawn } from 'node:child_process'
+import { readFileSync, mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { launchCodex, log } from './codex-pipe.mjs'
 
 const OUT = process.env.KOI_OUT
 if (!OUT) { console.error('set KOI_OUT'); process.exit(2) }
-mkdirSync(join(OUT, 'frames'), { recursive: true })
+const SECONDS = Number(process.env.KOI_SECONDS || 26)
+const again = process.argv.includes('--again'), studio = process.argv.includes('--studio')
+mkdirSync(OUT, { recursive: true })
 const sleep = ms => new Promise(r => setTimeout(r, ms))
-const now = () => Date.now() / 1000
+const front = () => {
+  try { return /bundleID="com\.openai\.codex"/.test(execFileSync('/usr/bin/lsappinfo', ['info', '-only', 'bundleid', execFileSync('/usr/bin/lsappinfo', ['front']).toString().trim()]).toString()) }
+  catch { return false }
+}
 
-let main = null
-/* English for this run only; and keep painting while other windows cover Codex, so the take needs no screen */
-const ARGS = ['--lang=en-US', '--disable-backgrounding-occluded-windows', '--disable-renderer-backgrounding', '--disable-background-timer-throttling']
-const codex = await launchCodex({ args: ARGS, onPage(info, sessionId) { if (info.url.endsWith('/index.html')) main = sessionId } })
-/* every command answers within 8 s or the take stops with the reason */
-const send = (method, params = {}) => Promise.race([
-  codex.cdp.send(method, params, main),
-  new Promise((_, ko) => setTimeout(() => ko(new Error(`${method} did not answer in 8 s`)), 8000)),
-])
-const evaluate = async expression => (await send('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true })).result?.value
-
-/* wait for the new-chat page and the pond on it */
-for (let i = 0; i < 120 && !(main && await evaluate(`!!document.querySelector('[data-testid="home-icon"]') && !!document.querySelector('canvas[data-codex-koi]')`).catch(() => false)); i++) await sleep(250)
-if (!main) { log('no main page'); process.exit(1) }
-
-process.on('unhandledRejection', e => { log('error', e?.message || e); process.exit(1) })
-
-/* a minimised or hidden window paints nothing: wait until it is on screen */
-for (let i = 0; i < 240 && await evaluate('document.hidden'); i++) { if (i % 20 === 0) log('waiting for the window to show'); await sleep(250) }
-await sleep(800)
-
-/* the sidebar lists private threads: hide it for the take, and put it back after */
-log('sidebar buttons:', JSON.stringify(await evaluate(`[...document.querySelectorAll('button[aria-label]')].map(b => b.getAttribute('aria-label')).filter(l => /sidebar/i.test(l))`)))
-const pressSidebar = verb => evaluate(`(() => { const b = [...document.querySelectorAll('button[aria-label]')].find(b => /^${verb} sidebar$/i.test(b.getAttribute('aria-label'))); if (b) b.click(); return !!b })()`)
-const hidSidebar = await pressSidebar('hide')
-log('sidebar hidden for the take:', hidSidebar)
-await sleep(2500)
-
-const layout = await evaluate(`(() => {
-  const r = el => { const b = el.getBoundingClientRect(); return { x: b.left, y: b.top, w: b.width, h: b.height } }
-  const home = document.querySelector('[role="main"]:has([data-testid="home-icon"])')
-  const title = home?.querySelector('[data-feature="game-source"] > span')
-  const composer = document.querySelector('[contenteditable="true"], textarea')
-  return { vw: innerWidth, vh: innerHeight, dpr: devicePixelRatio, home: home && r(home), title: title && r(title), titleText: title?.textContent, composer: composer && r(composer) }
-})()`)
-log('layout', JSON.stringify(layout))
-
-/* the screencast: every frame Codex paints, with its time */
-const frames = []
-codex.cdp.on(msg => {
-  if (msg.method !== 'Page.screencastFrame' || msg.sessionId !== main) return
-  const { data, metadata, sessionId } = msg.params
-  const file = `f${String(frames.length).padStart(5, '0')}.jpg`
-  writeFileSync(join(OUT, 'frames', file), Buffer.from(data, 'base64'))
-  frames.push({ t: metadata.timestamp, file })
-  codex.cdp.send('Page.screencastFrameAck', { sessionId }, main).catch(() => {})
-})
-
-/* input, as a person's: the cursor glides (60 moves a second, eased), presses, types */
-const cursor = [], clicks = []
-let at = { x: layout.vw * 0.72, y: layout.vh * 0.78 }
-const move = async (x, y, ms) => {
-  const from = { ...at }, n = Math.max(1, Math.round(ms / 16))
-  for (let i = 1; i <= n; i++) {
-    const u = i / n, e = u < 0.5 ? 4 * u * u * u : 1 - (-2 * u + 2) ** 3 / 2
-    at = { x: from.x + (x - from.x) * e, y: from.y + (y - from.y) * e }
-    await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: at.x, y: at.y })
-    cursor.push({ t: now(), ...at })
-    await sleep(16)
+let rect
+if (!again) {
+  /* the take starts its own Codex: an open one would take over and get no koi. --restart quits it first */
+  const open = () => { try { execFileSync('/usr/bin/pgrep', ['-f', '^/Applications/ChatGPT.app/Contents/MacOS/ChatGPT']); return true } catch { return false } }
+  if (open()) {
+    if (!process.argv.includes('--restart')) { log('Codex is open: quit it (⌘Q), or run with --restart'); process.exit(2) }
+    log('quitting the open Codex (answer its dialog if it asks)…')
+    try { execFileSync('/usr/bin/osascript', ['-e', 'tell application id "com.openai.codex" to if it is running then quit'], { timeout: 5000 }) } catch {}
+    for (let i = 0; open(); i++) { if (i > 1200) { log('Codex is still open: quit it (⌘Q), then run again'); process.exit(2) } await sleep(100) }
+    await sleep(1500)
   }
+  let main = null
+  const codex = await launchCodex({ args: ['--lang=en-US'], onPage(info, sessionId) { if (info.url.split('?')[0].endsWith('/index.html')) main = sessionId } })
+  for (let i = 0; i < 80 && !main; i++) await sleep(50)
+  if (!main) { log('no main page'); process.exit(1) }
+  const demo = readFileSync(new URL('./demo.js', import.meta.url), 'utf8')
+  const send = (method, params) => Promise.race([codex.cdp.send(method, params, main), sleep(3000).then(() => { throw new Error(`${method} did not answer`) })])
+  const source = (studio ? 'window.__codexKoiDemoManual = true;\n' : '') + demo
+  await send('Page.addScriptToEvaluateOnNewDocument', { source })
+  await send('Runtime.evaluate', { expression: source })
+  /* a reply cut short by the helper must not end the take: the demo is already in */
+  process.on('uncaughtException', e => log('pipe:', e.message.slice(0, 80)))
+  const value = async x => (await send('Runtime.evaluate', { expression: x, returnByValue: true })).result?.value
+  /* only once the sidebar is hidden may the window come forward */
+  const READY = studio ? 'manual' : 'armed'
+  for (let i = 0; i < 60; i++) { if (await value('window.__codexKoiDemo?.state').catch(() => null) === READY) break; await sleep(250) }
+  rect = await value('[screenX, screenY, outerWidth, outerHeight].join()').catch(() => null)
+  const armed = await value('window.__codexKoiDemo?.state').catch(() => null) === READY
+  await codex.leave()
+  log('demo', armed ? 'armed' : 'not confirmed', '| window at', rect)
+  if (!rect || !armed) { log('not ready: Codex stays behind; nothing filmed'); process.exit(1) }
+  if (studio) { writeFileSync(join(OUT, 'rect.json'), JSON.stringify(rect)); log('studio: koi on, sidebar hidden; record with your screen recorder'); process.exit(0) }
+  /* bring it forward; if it does not come, a click on its title bar does */
+  execFileSync('/usr/bin/osascript', ['-e', 'tell application id "com.openai.codex" to if it is running then activate'])
+} else {
+  rect = process.env.KOI_RECT
+  if (!rect) { console.error('set KOI_RECT=x,y,w,h (from the first take\'s rect.json)'); process.exit(2) }
+  log('retake: switch away from Codex, then back')
+  while (front()) await sleep(150)
 }
-const click = async (button = 'left') => {
-  const b = button === 'right' ? 2 : 1
-  clicks.push({ t: now(), ...at, button })
-  await send('Input.dispatchMouseEvent', { type: 'mousePressed', x: at.x, y: at.y, button, buttons: b, clickCount: 1 })
-  await sleep(70)
-  await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: at.x, y: at.y, button, buttons: 0, clickCount: 1 })
-}
-const hold = async ms => { const end = Date.now() + ms; while (Date.now() < end) { cursor.push({ t: now(), ...at }); await sleep(33) } }
+writeFileSync(join(OUT, 'rect.json'), JSON.stringify(rect))
 
-const T = layout.title, H = layout.home
-/* screencast frames are Page events: without the Page domain on, they are never sent, never acked, and painting stalls */
-await send('Page.enable')
-await send('Page.startScreencast', { format: 'jpeg', quality: 92, maxWidth: 1920, maxHeight: 1200, everyNthFrame: 1 })
-log('screencast on, hidden:', await evaluate('document.hidden'))
-const t0 = now()
-await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: at.x, y: at.y })
-await hold(7600)                                                        // the koi swim, the cursor rests
-await move(T.x + T.w * 0.3, T.y + T.h * 0.55, 900)                       // to the heading
-await hold(250)
-await click('right')                                                    // food on the words
-await hold(4200)                                                        // the koi crowd in and light them up
-await move(T.x + T.w * 0.12, T.y + T.h + 90, 700)                        // just under the crowd
-await hold(200)
-await click('left')                                                     // the cat's paw
-await hold(2600)                                                        // they scatter
-if (layout.composer) {
-  const C = layout.composer
-  await move(C.x + 40, C.y + C.h / 2, 900)
-  await click('left')
-  await hold(300)
-  for (const ch of 'make my codex feel alive') { await send('Input.insertText', { text: ch }); cursor.push({ t: now(), ...at }); await sleep(70 + Math.random() * 50) }
-  await hold(2200)
-}
-await send('Page.stopScreencast')
-const t1 = now()
-log('recorded', frames.length, 'frames in', (t1 - t0).toFixed(1), 's')
-
-/* leave Codex as it was: the prompt cleared, the sidebar back */
-await send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: 'a', code: 'KeyA', windowsVirtualKeyCode: 65, modifiers: 4, commands: ['selectAll'] })
-await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'a', code: 'KeyA', windowsVirtualKeyCode: 65, modifiers: 4 })
-await send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: 'Backspace', code: 'Backspace', windowsVirtualKeyCode: 8 })
-await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Backspace', code: 'Backspace', windowsVirtualKeyCode: 8 })
-if (hidSidebar) await pressSidebar('show')
-
-writeFileSync(join(OUT, 'timeline.json'), JSON.stringify({ t0, t1, layout, frames, cursor, clicks }, null, 0))
-await codex.leave()
-log('record done ->', OUT)
-process.exit(0)
+log('>>> waiting for Codex in front (pointer off the window, then leave it)')
+for (let i = 0; !front(); i++) { if (i % 60 === 0 && i) log('still waiting'); if (i > 3000) { log('Codex never came to the front'); process.exit(1) } await sleep(100) }
+log('Codex in front: filming', SECONDS, 's')
+const take = join(OUT, 'take.mov')
+const code = await new Promise(done => spawn('/usr/sbin/screencapture', ['-v', '-V', String(SECONDS), '-x', `-R${rect}`, take], { stdio: 'inherit' }).on('exit', done))
+log(code === 0 ? 'take done ->' : `screencapture exit ${code} ->`, take)
+process.exit(code ?? 1)
