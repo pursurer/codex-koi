@@ -1,0 +1,1 @@
+codex-theme-v1:{"codeThemeId":"oscurange","theme":{"accent":"#e8784f","contrast":60,"fonts":{"code":"Geist Mono, ui-monospace, monospace","ui":null},"ink":"#ebe6dc","opaqueWindows":false,"semanticColors":{"diffAdded":"#8cc59a","diffRemoved":"#e0533a","skill":"#e6a434"},"surface":"#0d1315"},"variant":"dark"}
