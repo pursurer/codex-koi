@@ -1,9 +1,9 @@
 # Codex Koi
 
-**The ASCII Koi pond behind the Codex desktop app's new-chat page, and a little black cat that keeps you company while Codex works.** Koi drawn in text characters swim under the heading, and the letters take each koi's colour as it passes beneath them. Click the water for the black cat's paw, right-click to feed the koi. The pond is gone as soon as a thread opens; the cat stays, as your Codex pet.
+**The ASCII Koi pond behind the Codex desktop app's new-chat page, and a little black cat that keeps you company while Codex works.** Up to 24 koi drawn in text characters swim under the heading, and the letters take each koi's colour as it passes beneath them. Click the water for the black cat's paw, right-click to feed the koi, Shift-click to change the water: black, a blue pond, or light. The pond is gone as soon as a thread opens; the cat stays, as your Codex pet.
 
 <p align="center">
-  <img src="media/codex-koi.png" alt="The Codex new-chat page on black water: koi drawn in text characters swim around the heading What should we work on in Lesson wiki?, and the word should glows in the red and orange of the koi passing under it. Codex's own prompt box sits at the bottom." width="100%">
+  <img src="media/codex-koi.gif" alt="Codex's new-chat page with Codex Koi. The cat's paw dips into black water and the koi bolt. A Shift-click turns the water blue, then light, each new water spreading from the click. The black cat pet sits by the prompt box. Captions name each action." width="100%">
 </p>
 
 <p align="center"><a href="#install"><b>▶ Install (macOS)</b></a> &nbsp;·&nbsp; <a href="#the-black-cat">The black cat pet</a> &nbsp;·&nbsp; <a href="https://pursurer.github.io/ascii-koi/">See the pond in your browser</a></p>
@@ -84,9 +84,11 @@ The approach follows [Codex-Dream-Skin](https://github.com/Fei-Away/Codex-Dream-
 
 `overlay.js` runs in each `app://` page. It skips the pet's overlay page and, following Dream Skin's selector contract, finds the active new-chat page as `[role="main"]:has([data-testid="home-icon"])` outside `[data-app-shell-active-page="false"]`.
 
-On that page it puts a canvas at `z-index: -1` inside the page's main surface, which it isolates, so every native control stays above the pond. It runs `createPond` in the black water and dims the koi under the heading. When a thread opens it stops the pond and removes the canvas.
+On that page it puts a canvas at `z-index: -1` inside the page's main surface, which it isolates, so every native control stays above the pond. It runs `createPond` in the black water with a fuller shoal than the new-tab page (`most: 24`; ASCII Koi's own page keeps fourteen) and dims the koi under the heading. When a thread opens it stops the pond and removes the canvas.
 
 The heading keeps Codex's own font: a canvas over it draws each character again where Codex laid it out, in the heading's colour. A koi passing under a character lends it the koi's colour (across the glyph, so half a character can turn) and a soft glow, and the caustic net brightens it, as the ASCII Koi clock takes on the pond. Codex's own heading (`[data-feature="game-source"]`) stays underneath with its text made transparent, so the project name keeps its dotted underline and still opens the project menu.
+
+Shift-click on open water cycles three waters: black (`#0d1315`), a blue pond (`#0e2a32`) and light water (`#e9e4da`, with dark ink and a deeper accent). The new water spreads from the click as a widening circle over about a second, and the heading's letters change ink as the circle passes them. The choice is kept in the page's local storage (`codex-koi-water`). A key shortcut was tried first and dropped: Codex sends typed keys to its prompt box.
 
 The view is a little higher than the page's: the pond is simulated at `VIEW` (1.3) times the surface size and drawn back into it at the screen's own pixel density. The koi are smaller and more water shows, at no extra drawing cost.
 

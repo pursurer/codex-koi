@@ -121,8 +121,10 @@
   const COLOURS = ["course", "vermilion", "gold", "sakura"];
   /* the most one joint of a koi turns from the one in front of it, in radians */
   const BEND = 0.42;
-  /* More koi in a bigger pond, by width or by area. */
-  const room = (w, h) => clamp(Math.max(w / 210, w * h / 85000), 3, VARIETY.length);
+  /* More koi in a bigger pond, by width or by area, up to `most` (opts.most; fourteen unless a host asks for more). */
+  const room = (w, h, most) => clamp(Math.max(w / 210, w * h / 85000), 3, most);
+  /* the i-th koi's variety: the fourteen above, then kohaku and sanke in turn (still one tancho) */
+  const varietyOf = i => i < VARIETY.length ? VARIETY[i] : (i % 2 ? "sanke" : "kohaku");
 
   /*
    * The paw's keyframes [time, value, ease into it]: o eases out, i eases in,
@@ -162,6 +164,7 @@
   function createPond(opts) {
     const canvas = opts.canvas, ctx = canvas.getContext("2d");
     const reduce = !!opts.reduce;
+    const MOST = Math.max(3, Math.round(opts.most || VARIETY.length));
     const N = 10, RAMP = " .:-=+*#%@", SUB = [0.25, 0.25, 0.75, 0.25, 0.25, 0.75, 0.75, 0.75];
     let vw = 0, vh = 0, dpr = 1, cw = 10, ch = 13, cols = 0, rows = 0, K = 1.85;
     let t = 0, simT = 0, paused = false;
@@ -177,7 +180,7 @@
     const caus = (x, y) => 1 - Math.min(1, Math.abs(noise(x / 46 + t * 0.21, y / 46 - t * 0.13, 7) - noise(x / 39 - t * 0.17, y / 52 + t * 0.19, 11)) * 5.5);
 
     function makeFish() {
-      fish = VARIETY.map((variety, i) => {
+      fish = Array.from({ length: MOST }, (_, i) => varietyOf(i)).map((variety, i) => {
         const r = seeded("koi" + i);
         const right = i % 2 === 0, a = right ? (r() - 0.5) * 0.3 : Math.PI + (r() - 0.5) * 0.3;
         const L0 = 128 + r() * 52, seg = L0 / (N - 1);
@@ -206,7 +209,7 @@
       tintRGB = new Uint32Array(n); tintA = new Float32Array(n);
       touched.length = 0;
     }
-    const count = () => Math.round(room(vw, vh));
+    const count = () => Math.round(room(vw, vh, MOST));
     const headX = f => f.nx * vw, headY = f => f.ny * vh;
 
     function stamp(x, y, rad, amt) {
