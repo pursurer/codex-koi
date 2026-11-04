@@ -86,6 +86,8 @@ const click = async (button = 'left') => {
 const hold = async ms => { const end = Date.now() + ms; while (Date.now() < end) { cursor.push({ t: now(), ...at }); await sleep(33) } }
 
 const T = layout.title, H = layout.home
+/* screencast frames are Page events: without the Page domain on, they are never sent, never acked, and painting stalls */
+await send('Page.enable')
 await send('Page.startScreencast', { format: 'jpeg', quality: 92, maxWidth: 1920, maxHeight: 1200, everyNthFrame: 1 })
 log('screencast on, hidden:', await evaluate('document.hidden'))
 const t0 = now()
