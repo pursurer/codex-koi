@@ -1,16 +1,36 @@
 # Codex Koi
 
-**The ASCII Koi pond behind the Codex desktop app's new-chat page, and a little black cat that keeps you company while Codex works.** Up to 24 koi drawn in text characters swim under the heading, and the letters take each koi's colour as it passes beneath them. Click the water for the black cat's paw, right-click to feed the koi, Shift-click to change the water: black, a blue pond, or light. The pond is gone as soon as a thread opens; the cat stays, as your Codex pet.
+**A koi pond on the Codex desktop app's new-chat page, and a little black cat that keeps you company while Codex works.** Up to 24 koi drawn in text characters swim under the heading, and each letter takes the colour of the koi passing beneath it. The pond is gone as soon as a thread opens; the cat stays, as your Codex pet.
 
 <p align="center">
-  <img src="media/codex-koi.gif" alt="Codex's new-chat page with Codex Koi. The cat's paw dips into black water and the koi bolt. A Shift-click turns the water blue, then light, each new water spreading from the click. The black cat pet sits by the prompt box. Captions name each action." width="100%">
+  <a href="#the-film"><img src="media/codex-koi.gif" alt="Codex's new-chat page over black water: koi drawn in text characters swim under the heading 'What should we build in codex-koi?'. The view pushes in, food lands and the koi race for it, the cat's paw dips in and they bolt, and a Shift-click spreads blue water from the click." width="100%"></a>
 </p>
 
-<p align="center"><a href="#install"><b>▶ Install (macOS)</b></a> &nbsp;·&nbsp; <a href="#the-black-cat">The black cat pet</a> &nbsp;·&nbsp; <a href="https://pursurer.github.io/ascii-koi/">See the pond in your browser</a></p>
+<p align="center"><a href="#install"><b>▶ Install (macOS)</b></a> &nbsp;·&nbsp; <a href="#the-film">Watch the film (33 s, sound on)</a> &nbsp;·&nbsp; <a href="#the-black-cat">The black cat pet</a></p>
+
+<!-- family-nav:start -->
+<p align="center"><sub>Part of the <a href="#the-ascii-koi-family">ASCII Koi family</a>: <a href="https://github.com/pursurer/ascii-koi">ASCII Koi</a> · <b>Codex Koi</b> · <a href="https://github.com/pursurer/claude-koi-backdrop">Koi Backdrop</a> · <a href="https://github.com/pursurer/one-page-is-all-you-need">One Page</a></sub></p>
+<!-- family-nav:end -->
+
+## What you can do
+
+| On the new-chat page | What happens |
+| --- | --- |
+| **Click the water** | The black cat's paw dips in and scoops; the koi bolt, then the curious ones come back |
+| **Right-click** | A handful of food; the koi race each other to it |
+| **Shift-click** | The next water: black, a blue pond, then light. It spreads from the click, and the heading's letters change ink as it passes |
+| **Open a thread** | The pond leaves. The black cat stays by the prompt box as your Codex pet and trots while Codex works |
 
 The pond is [ASCII Koi](https://github.com/pursurer/ascii-koi)'s own `pond.js`, byte for byte, so the koi swim, scatter and eat as they do on the ASCII Koi page.
 
-Status: works with ChatGPT.app 26.1027 (Codex, Chromium 156) on macOS, checked 2026-11-04. It is unofficial: a Codex update can change the page and turn the pond off.
+> [!NOTE]
+> Works with ChatGPT.app 26.1027 (Codex, Chromium 156) on macOS, checked 2026-11-04. Codex Koi is unofficial: a Codex update can change the page and turn the pond off.
+
+## The film
+
+https://github.com/user-attachments/assets/36719926-f5d4-4609-906e-b7ef8b8464f6
+
+33 seconds, sound on, filmed in the real Codex app: feeding, the paw, the three waters, and the cat at work while Codex answers.
 
 ## Install
 
@@ -146,16 +166,27 @@ osacompile -o "$HOME/Applications/Codex Koi.app/Contents/Resources/Scripts/main.
 <!-- family:start -->
 ## The ASCII Koi family
 
-One design, and the two places it lives. Koi drawn in text characters, letters that take a koi's colours as it swims under them, a black cat in character tiles, and black water (`#0d1315` water, `#ebe6dc` ink, `#e8784f` accent).
+One design in four places: koi drawn in text characters, letters that take a koi's colours as it swims under them, a black cat in character tiles, and black water (`#0d1315` water, `#ebe6dc` ink, `#e8784f` accent). Codex Koi and Koi Backdrop run ASCII Koi's `pond.js` byte for byte; the pond and the cat began in One Page.
 
-| Project | What it is |
-|---|---|
-| [ASCII Koi](https://github.com/pursurer/ascii-koi) | **The design.** The pond itself: your new tab, under a clock made of the same characters. Its `pond.js` is the engine both apps run, byte for byte |
-| **Codex Koi** (this repository) | **In Codex.** The pond behind the Codex desktop app's new-chat page, and the black cat as your Codex pet |
-| [One Page is all you need](https://github.com/pursurer/one-page-is-all-you-need) | **In your morning.** A one-page briefing that an n8n agent writes every day, opening on the pond. Where the koi and the cat began |
+<table>
+<tr>
+<td width="50%" valign="top"><a href="https://github.com/pursurer/ascii-koi"><img src="https://raw.githubusercontent.com/pursurer/ascii-koi/main/media/family/ascii-koi.png" alt="ASCII Koi: koi in text characters swim around the title ASCII Koi on dark teal water" width="100%"></a><br><b><a href="https://github.com/pursurer/ascii-koi">ASCII Koi</a></b> · the design<br>The pond itself: your new tab, under a clock made of the same characters.</td>
+<td width="50%" valign="top"><a href="https://github.com/pursurer/codex-koi"><img src="https://raw.githubusercontent.com/pursurer/ascii-koi/main/media/family/codex-koi.png" alt="Codex Koi: koi swim under the heading of Codex's new-chat page in black water" width="100%"></a><br><b>Codex Koi</b> (this repository) · in Codex<br>The pond behind the Codex desktop app's new-chat page, and the black cat as your Codex pet.</td>
+</tr>
+<tr>
+<td width="50%" valign="top"><a href="https://github.com/pursurer/claude-koi-backdrop"><img src="https://raw.githubusercontent.com/pursurer/ascii-koi/main/media/family/koi-backdrop.png" alt="Koi Backdrop: koi swim behind a chat in the Claude desktop app" width="100%"></a><br><b><a href="https://github.com/pursurer/claude-koi-backdrop">Koi Backdrop</a></b> · in Claude<br>The pond behind your conversations in the Claude desktop app, as a plugin with a <code>/koi</code> command.</td>
+<td width="50%" valign="top"><a href="https://github.com/pursurer/one-page-is-all-you-need"><img src="https://raw.githubusercontent.com/pursurer/ascii-koi/main/media/family/one-page.png" alt="One Page is all you need: the title drawn in character cells over the koi pond" width="100%"></a><br><b><a href="https://github.com/pursurer/one-page-is-all-you-need">One Page is all you need</a></b> · in your morning<br>A one-page briefing that an n8n agent writes every day, opening on the pond. Where the koi and the cat began.</td>
+</tr>
+</table>
 
 Every repository in the family has the topic [`ascii-koi`](https://github.com/topics/ascii-koi).
 <!-- family:end -->
+
+## Credits
+
+- The way into Codex follows [Codex-Dream-Skin](https://github.com/Fei-Away/Codex-Dream-Skin) (see How it works for the differences).
+- The koi are [ASCII Koi](https://github.com/pursurer/ascii-koi)'s `pond.js`; the cat is drawn by the code of [One Page is all you need](https://github.com/pursurer/one-page-is-all-you-need).
+- Font: [Geist Mono](https://github.com/vercel/geist-font), SIL Open Font License (see `pet/build/`).
 
 ## License
 
